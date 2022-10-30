@@ -98,6 +98,16 @@ impl CPU {
         self.mem_write(addr, self.register_a);
     }
 
+    fn stx(&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        self.mem_write(addr, self.register_x);
+    }
+
+    fn sty(&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        self.mem_write(addr, self.register_y);
+    }
+
     fn update_zero_and_negative_flags(&mut self, result: u8) {
         if result == 0 {
             self.status = self.status | 0b0000_0010;
@@ -188,6 +198,12 @@ impl CPU {
                 }
                 0x85 | 0x95 | 0x8D | 0x9D | 0x99 | 0x81 | 0x91 => {
                     self.sta(&opcode.mode);
+                }
+                0x86 | 0x96 | 0x8E => {
+                    self.stx(&opcode.mode);
+                }
+                0x84 | 0x94 | 0x8C => {
+                    self.sty(&opcode.mode);
                 }
                 0xAA => self.tax(),
                 0xA8 => self.tay(),
@@ -293,5 +309,35 @@ mod test {
         cpu.mem_write(0x10, 0x55);
         cpu.load_and_run(vec![0xA5, 0x10, 0x00]);
         assert_eq!(cpu.register_a, 0x55);
+    }
+
+    #[test]
+    fn test_sta_to_memory() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0xa9, 0x55, 0x85, 0x00]);
+        assert_eq!(
+            cpu.mem_read(cpu.mem_read(cpu.program_counter - 2) as u16),
+            0x55
+        );
+    }
+
+    #[test]
+    fn test_stx_to_memory() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0xa9, 0x55, 0xaa, 0x86, 0x00]);
+        assert_eq!(
+            cpu.mem_read(cpu.mem_read(cpu.program_counter - 2) as u16),
+            0x55
+        );
+    }
+
+    #[test]
+    fn test_sty_to_memory() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0xa9, 0x55, 0xa8, 0x84, 0x00]);
+        assert_eq!(
+            cpu.mem_read(cpu.mem_read(cpu.program_counter - 2) as u16),
+            0x55
+        );
     }
 }
