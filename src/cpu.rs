@@ -38,7 +38,6 @@ impl CPU {
         }
     }
 
-    // NOTE: This is a pub function for testing purposes only
     fn mem_read(&self, addr: u16) -> u8 {
         self.memory[addr as usize]
     }
@@ -58,6 +57,32 @@ impl CPU {
         let lo = (data & 0xff) as u8;
         self.mem_write(pos, lo);
         self.mem_write(pos + 1, hi);
+    }
+
+    fn dec(&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        let value = self.mem_read(addr);
+        let result = value.wrapping_sub(1);
+        self.mem_write(addr, result);
+        self.update_zero_and_negative_flags(result);
+    }
+
+    fn dex(&mut self) {
+        if self.register_x == 0x00 {
+            self.register_x = 0xff;
+        } else {
+            self.register_x -= 1;
+        }
+        self.update_zero_and_negative_flags(self.register_x);
+    }
+
+    fn dey(&mut self) {
+        if self.register_y == 0x00 {
+            self.register_y = 0xff;
+        } else {
+            self.register_y -= 1;
+        }
+        self.update_zero_and_negative_flags(self.register_y);
     }
 
     fn inx(&mut self) {
@@ -228,6 +253,11 @@ impl CPU {
                 .get(&code)
                 .expect(&format!("OpCode {:X} is not recognized", code));
             match code {
+                0xC6 | 0xD6 | 0xCE | 0xDE => {
+                    self.dec(&opcode.mode);
+                }
+                0xCA => self.dex(),
+                0x88 => self.dey(),
                 0xE8 => self.inx(),
                 0xc8 => self.iny(),
                 0xA9 | 0xA5 | 0xB5 | 0xAD | 0xBD | 0xB9 | 0xA1 | 0xB1 => {
@@ -413,6 +443,33 @@ mod test {
         cpu.load_and_run(vec![0xa9, 0x7F, 0xa8, 0xc8, 0x00]);
         assert_eq!(cpu.register_y, 0x80);
         assert!(cpu.status & 0b0000_0010 == 0b00);
+        assert!(cpu.status & 0b1000_0000 == 0b1000_0000);
+    }
+
+    #[test]
+    fn test_0xca_dex_decrement_x() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0xa9, 0x80, 0xaa, 0xca, 0x00]);
+        assert_eq!(cpu.register_x, 0x7F);
+        assert!(cpu.status & 0b0000_0010 == 0b00);
+        assert!(cpu.status & 0b1000_0000 == 0b0000_0000);
+    }
+
+    #[test]
+    fn test_0x88_dey_decrement_y() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0xa9, 0x80, 0xa8, 0x88, 0x00]);
+        assert_eq!(cpu.register_y, 0x7F);
+        assert!(cpu.status & 0b0000_0010 == 0b00);
+        assert!(cpu.status & 0b1000_0000 == 0b0000_0000);
+    }
+
+    #[test]
+    fn test_0xc6_dec_decrement_memory() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0xc6, 0x00]);
+        assert_eq!(cpu.mem_read(0x00), 0xFF);
+        assert!(cpu.status & 0b0000_0010 == 0b0000_0000);
         assert!(cpu.status & 0b1000_0000 == 0b1000_0000);
     }
 
