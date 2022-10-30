@@ -36,6 +36,7 @@ impl CPU {
         }
     }
 
+    // NOTE: This is a pub function for testing purposes only
     fn mem_read(&self, addr: u16) -> u8 {
         self.memory[addr as usize]
     }
@@ -69,6 +70,11 @@ impl CPU {
         self.update_zero_and_negative_flags(self.register_x);
     }
 
+    fn tay(&mut self) {
+        self.register_y = self.register_a;
+        self.update_zero_and_negative_flags(self.register_y);
+    }
+
     fn inx(&mut self) {
         if self.register_x == 0xff {
             self.register_x = 0;
@@ -76,6 +82,15 @@ impl CPU {
             self.register_x += 1;
         }
         self.update_zero_and_negative_flags(self.register_x);
+    }
+
+    fn iny(&mut self) {
+        if self.register_y == 0xff {
+            self.register_y = 0;
+        } else {
+            self.register_y += 1;
+        }
+        self.update_zero_and_negative_flags(self.register_y);
     }
 
     fn sta(&mut self, mode: &AddressingMode) {
@@ -175,7 +190,9 @@ impl CPU {
                     self.sta(&opcode.mode);
                 }
                 0xAA => self.tax(),
+                0xA8 => self.tay(),
                 0xE8 => self.inx(),
+                0xc8 => self.iny(),
                 0x00 => {
                     return;
                 }
@@ -228,6 +245,15 @@ mod test {
     }
 
     #[test]
+    fn test_0xa8_tay_move_a_to_x() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0xa9, 0x83, 0xa8, 0x00]);
+        assert_eq!(cpu.register_y, 0x83);
+        assert!(cpu.status & 0b0000_0010 == 0b00);
+        assert!(cpu.status & 0b1000_0000 == 0b1000_0000);
+    }
+
+    #[test]
     fn test_0xe8_inx_increment_x() {
         let mut cpu = CPU::new();
         cpu.load_and_run(vec![0xa9, 0x7F, 0xaa, 0xe8, 0x00]);
@@ -250,6 +276,15 @@ mod test {
         cpu.load_and_run(vec![0xa9, 0xff, 0xaa, 0xe8, 0xe8, 0x00]);
 
         assert_eq!(cpu.register_x, 1)
+    }
+
+    #[test]
+    fn test_0xc8_iny_increment_y() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0xa9, 0x7F, 0xa8, 0xc8, 0x00]);
+        assert_eq!(cpu.register_y, 0x80);
+        assert!(cpu.status & 0b0000_0010 == 0b00);
+        assert!(cpu.status & 0b1000_0000 == 0b1000_0000);
     }
 
     #[test]
