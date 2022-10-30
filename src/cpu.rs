@@ -85,6 +85,14 @@ impl CPU {
         self.update_zero_and_negative_flags(self.register_y);
     }
 
+    fn inc(&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        let value = self.mem_read(addr);
+        let result = value.wrapping_add(1);
+        self.mem_write(addr, result);
+        self.update_zero_and_negative_flags(result);
+    }
+
     fn inx(&mut self) {
         if self.register_x == 0xff {
             self.register_x = 0;
@@ -258,6 +266,9 @@ impl CPU {
                 }
                 0xCA => self.dex(),
                 0x88 => self.dey(),
+                0xE6 | 0xF6 | 0xEE | 0xFE => {
+                    self.inc(&opcode.mode);
+                }
                 0xE8 => self.inx(),
                 0xc8 => self.iny(),
                 0xA9 | 0xA5 | 0xB5 | 0xAD | 0xBD | 0xB9 | 0xA1 | 0xB1 => {
@@ -471,6 +482,15 @@ mod test {
         assert_eq!(cpu.mem_read(0x00), 0xFF);
         assert!(cpu.status & 0b0000_0010 == 0b0000_0000);
         assert!(cpu.status & 0b1000_0000 == 0b1000_0000);
+    }
+
+    #[test]
+    fn test_0xe6_inc_increment_memory() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0xe6, 0x00]);
+        assert_eq!(cpu.mem_read(0x00), 0x01);
+        assert!(cpu.status & 0b0000_0010 == 0b0000_0000);
+        assert!(cpu.status & 0b1000_0000 == 0b0000_0000);
     }
 
     #[test]
