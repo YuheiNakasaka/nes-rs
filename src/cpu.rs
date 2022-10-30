@@ -19,6 +19,7 @@ pub struct CPU {
     pub register_a: u8,
     pub register_x: u8,
     pub register_y: u8,
+    pub register_s: u8,
     pub status: u8,
     pub program_counter: u16,
     memory: [u8; 0xFFFF],
@@ -30,6 +31,7 @@ impl CPU {
             register_a: 0,
             register_x: 0,
             register_y: 0,
+            register_s: 0,
             status: 0,
             program_counter: 0,
             memory: [0; 0xFFFF],
@@ -58,6 +60,24 @@ impl CPU {
         self.mem_write(pos + 1, hi);
     }
 
+    fn inx(&mut self) {
+        if self.register_x == 0xff {
+            self.register_x = 0;
+        } else {
+            self.register_x += 1;
+        }
+        self.update_zero_and_negative_flags(self.register_x);
+    }
+
+    fn iny(&mut self) {
+        if self.register_y == 0xff {
+            self.register_y = 0;
+        } else {
+            self.register_y += 1;
+        }
+        self.update_zero_and_negative_flags(self.register_y);
+    }
+
     fn lda(&mut self, mode: &AddressingMode) {
         let addr = self.get_operand_address(mode);
         let value = self.mem_read(addr);
@@ -79,34 +99,6 @@ impl CPU {
         self.update_zero_and_negative_flags(self.register_y);
     }
 
-    fn tax(&mut self) {
-        self.register_x = self.register_a;
-        self.update_zero_and_negative_flags(self.register_x);
-    }
-
-    fn tay(&mut self) {
-        self.register_y = self.register_a;
-        self.update_zero_and_negative_flags(self.register_y);
-    }
-
-    fn inx(&mut self) {
-        if self.register_x == 0xff {
-            self.register_x = 0;
-        } else {
-            self.register_x += 1;
-        }
-        self.update_zero_and_negative_flags(self.register_x);
-    }
-
-    fn iny(&mut self) {
-        if self.register_y == 0xff {
-            self.register_y = 0;
-        } else {
-            self.register_y += 1;
-        }
-        self.update_zero_and_negative_flags(self.register_y);
-    }
-
     fn sta(&mut self, mode: &AddressingMode) {
         let addr = self.get_operand_address(mode);
         self.mem_write(addr, self.register_a);
@@ -120,6 +112,35 @@ impl CPU {
     fn sty(&mut self, mode: &AddressingMode) {
         let addr = self.get_operand_address(mode);
         self.mem_write(addr, self.register_y);
+    }
+
+    fn tax(&mut self) {
+        self.register_x = self.register_a;
+        self.update_zero_and_negative_flags(self.register_x);
+    }
+
+    fn tay(&mut self) {
+        self.register_y = self.register_a;
+        self.update_zero_and_negative_flags(self.register_y);
+    }
+
+    fn tsx(&mut self) {
+        self.register_x = self.register_s;
+        self.update_zero_and_negative_flags(self.register_x);
+    }
+
+    fn txa(&mut self) {
+        self.register_a = self.register_x;
+        self.update_zero_and_negative_flags(self.register_a);
+    }
+
+    fn txs(&mut self) {
+        self.register_s = self.register_x;
+    }
+
+    fn tya(&mut self) {
+        self.register_a = self.register_y;
+        self.update_zero_and_negative_flags(self.register_a);
     }
 
     fn update_zero_and_negative_flags(&mut self, result: u8) {
@@ -207,6 +228,8 @@ impl CPU {
                 .get(&code)
                 .expect(&format!("OpCode {:X} is not recognized", code));
             match code {
+                0xE8 => self.inx(),
+                0xc8 => self.iny(),
                 0xA9 | 0xA5 | 0xB5 | 0xAD | 0xBD | 0xB9 | 0xA1 | 0xB1 => {
                     self.lda(&opcode.mode);
                 }
@@ -227,8 +250,10 @@ impl CPU {
                 }
                 0xAA => self.tax(),
                 0xA8 => self.tay(),
-                0xE8 => self.inx(),
-                0xc8 => self.iny(),
+                0xBA => self.tsx(),
+                0x8A => self.txa(),
+                0x9A => self.txs(),
+                0x98 => self.tya(),
                 0x00 => {
                     return;
                 }
@@ -321,6 +346,40 @@ mod test {
         assert_eq!(cpu.register_y, 0x83);
         assert!(cpu.status & 0b0000_0010 == 0b00);
         assert!(cpu.status & 0b1000_0000 == 0b1000_0000);
+    }
+
+    #[test]
+    fn test_0xba_tsx_move_s_to_x() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0xba, 0x00]);
+        assert_eq!(cpu.register_x, 0x00);
+        assert!(cpu.status & 0b0000_0010 == 0b10);
+        assert!(cpu.status & 0b1000_0000 == 0b0000_0000);
+    }
+
+    #[test]
+    fn test_0xba_txa_move_x_to_a() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0x8a, 0x00]);
+        assert_eq!(cpu.register_a, 0x00);
+        assert!(cpu.status & 0b0000_0010 == 0b10);
+        assert!(cpu.status & 0b1000_0000 == 0b0000_0000);
+    }
+
+    #[test]
+    fn test_0xba_txs_move_x_to_s() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0x9a, 0x00]);
+        assert_eq!(cpu.register_s, 0x00);
+    }
+
+    #[test]
+    fn test_0x98_tya_move_y_to_a() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0x98, 0x00]);
+        assert_eq!(cpu.register_a, 0x00);
+        assert!(cpu.status & 0b0000_0010 == 0b10);
+        assert!(cpu.status & 0b1000_0000 == 0b0000_0000);
     }
 
     #[test]
