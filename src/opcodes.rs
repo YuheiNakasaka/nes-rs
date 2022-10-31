@@ -27,6 +27,10 @@ impl OpCode {
 pub static CPU_OPS_CODES: Lazy<Vec<OpCode>> = Lazy::new(|| {
     vec![
         OpCode::new(0x00, "BRK", 1, 7, AddressingMode::NoneAddressing),
+        OpCode::new(0x18, "CLC", 1, 2, AddressingMode::ZeroPage),
+        OpCode::new(0xd8, "CLD", 1, 2, AddressingMode::ZeroPage),
+        OpCode::new(0x58, "CLI", 1, 2, AddressingMode::ZeroPage),
+        OpCode::new(0xb8, "CLV", 1, 2, AddressingMode::ZeroPage),
         OpCode::new(0xc6, "DEC", 2, 5, AddressingMode::ZeroPage),
         OpCode::new(0xd6, "DEC", 2, 6, AddressingMode::ZeroPage_X),
         OpCode::new(0xce, "DEC", 3, 6, AddressingMode::Absolute),

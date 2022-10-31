@@ -59,6 +59,22 @@ impl CPU {
         self.mem_write(pos + 1, hi);
     }
 
+    fn clc(&mut self) {
+        self.status = self.status & 0b1111_1110
+    }
+
+    fn cld(&mut self) {
+        self.status = self.status & 0b1111_0111
+    }
+
+    fn cli(&mut self) {
+        self.status = self.status & 0b1111_1011
+    }
+
+    fn clv(&mut self) {
+        self.status = self.status & 0b1011_1111
+    }
+
     fn dec(&mut self, mode: &AddressingMode) {
         let addr = self.get_operand_address(mode);
         let value = self.mem_read(addr);
@@ -273,6 +289,10 @@ impl CPU {
                 .get(&code)
                 .expect(&format!("OpCode {:X} is not recognized", code));
             match code {
+                0x18 => self.clc(),
+                0xD8 => self.cld(),
+                0x58 => self.cli(),
+                0xB8 => self.clv(),
                 0xC6 | 0xD6 | 0xCE | 0xDE => {
                     self.dec(&opcode.mode);
                 }
@@ -327,6 +347,34 @@ impl CPU {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_0x18_clc_clear_carry_flag() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0x18, 0x00]);
+        assert!(cpu.status & 0b0000_0000 == 0b0000_0000);
+    }
+
+    #[test]
+    fn test_0xd8_cld_clear_decimal_mode() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0xd8, 0x00]);
+        assert!(cpu.status & 0b0000_0000 == 0b0000_0000);
+    }
+
+    #[test]
+    fn test_0x58_cli_clear_interrupt_disable() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0x58, 0x00]);
+        assert!(cpu.status & 0b0000_0000 == 0b0000_0000);
+    }
+
+    #[test]
+    fn test_0xb8_clv_clear_overflow_flag() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0xb8, 0x00]);
+        assert!(cpu.status & 0b0000_0000 == 0b0000_0000);
+    }
 
     #[test]
     fn test_0xa9_lda_immediate_load_data() {
