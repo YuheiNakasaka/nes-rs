@@ -132,6 +132,18 @@ impl CPU {
         self.update_zero_and_negative_flags(self.register_y);
     }
 
+    fn sec(&mut self) {
+        self.status = self.status | 0b0000_0001
+    }
+
+    fn sed(&mut self) {
+        self.status = self.status | 0b0000_1000
+    }
+
+    fn sei(&mut self) {
+        self.status = self.status | 0b0000_0100
+    }
+
     fn sta(&mut self, mode: &AddressingMode) {
         let addr = self.get_operand_address(mode);
         self.mem_write(addr, self.register_a);
@@ -281,6 +293,9 @@ impl CPU {
                     self.ldy(&opcode.mode);
                 }
                 0xEA => {}
+                0x38 => self.sec(),
+                0xf8 => self.sed(),
+                0x78 => self.sei(),
                 0x85 | 0x95 | 0x8D | 0x9D | 0x99 | 0x81 | 0x91 => {
                     self.sta(&opcode.mode);
                 }
@@ -500,6 +515,20 @@ mod test {
         cpu.mem_write(0x10, 0x55);
         cpu.load_and_run(vec![0xA5, 0x10, 0x00]);
         assert_eq!(cpu.register_a, 0x55);
+    }
+
+    #[test]
+    fn test_0x38_sec_set_carry_flag() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0x38, 0x00]);
+        assert!(cpu.status & 0b0000_0001 == 0b0000_0001);
+    }
+
+    #[test]
+    fn test_0x78_sei_set_interrupt_disable() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0x78, 0x00]);
+        assert!(cpu.status & 0b0000_0100 == 0b0000_0100);
     }
 
     #[test]
