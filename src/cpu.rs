@@ -19,7 +19,7 @@ pub struct CPU {
     pub register_a: u8,
     pub register_x: u8,
     pub register_y: u8,
-    pub register_s: u8,
+    pub stack_pointer: u8,
     pub status: u8,
     pub program_counter: u16,
     memory: [u8; 0xFFFF],
@@ -31,7 +31,7 @@ impl CPU {
             register_a: 0,
             register_x: 0,
             register_y: 0,
-            register_s: 0,
+            stack_pointer: 0,
             status: 0,
             program_counter: 0,
             memory: [0; 0xFFFF],
@@ -57,6 +57,11 @@ impl CPU {
         let lo = (data & 0xff) as u8;
         self.mem_write(pos, lo);
         self.mem_write(pos + 1, hi);
+    }
+
+    fn push_stack(&mut self, data: u8) {
+        self.mem_write(0x0100 as u16 + self.stack_pointer as u16, data);
+        self.stack_pointer = self.stack_pointer.wrapping_sub(1);
     }
 
     fn clc(&mut self) {
@@ -148,6 +153,10 @@ impl CPU {
         self.update_zero_and_negative_flags(self.register_y);
     }
 
+    fn pha(&mut self) {
+        self.push_stack(self.register_a);
+    }
+
     fn sec(&mut self) {
         self.status = self.status | 0b0000_0001
     }
@@ -186,7 +195,7 @@ impl CPU {
     }
 
     fn tsx(&mut self) {
-        self.register_x = self.register_s;
+        self.register_x = self.stack_pointer;
         self.update_zero_and_negative_flags(self.register_x);
     }
 
@@ -196,7 +205,7 @@ impl CPU {
     }
 
     fn txs(&mut self) {
-        self.register_s = self.register_x;
+        self.stack_pointer = self.register_x;
     }
 
     fn tya(&mut self) {
@@ -313,6 +322,7 @@ impl CPU {
                     self.ldy(&opcode.mode);
                 }
                 0xEA => {}
+                0x48 => self.pha(),
                 0x38 => self.sec(),
                 0xf8 => self.sed(),
                 0x78 => self.sei(),
@@ -475,7 +485,7 @@ mod test {
     fn test_0xba_txs_move_x_to_s() {
         let mut cpu = CPU::new();
         cpu.load_and_run(vec![0x9a, 0x00]);
-        assert_eq!(cpu.register_s, 0x00);
+        assert_eq!(cpu.stack_pointer, 0x00);
     }
 
     #[test]
@@ -563,6 +573,14 @@ mod test {
         cpu.mem_write(0x10, 0x55);
         cpu.load_and_run(vec![0xA5, 0x10, 0x00]);
         assert_eq!(cpu.register_a, 0x55);
+    }
+
+    #[test]
+    fn test_0x48_pha_push_accumulator() {
+        let mut cpu = CPU::new();
+        cpu.mem_write(0x10, 0x55);
+        cpu.load_and_run(vec![0xA5, 0x10, 0xAA, 0x9A, 0x48, 0x00]);
+        assert_eq!(cpu.mem_read(0x0155), 0x55);
     }
 
     #[test]

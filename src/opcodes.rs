@@ -62,6 +62,7 @@ pub static CPU_OPS_CODES: Lazy<Vec<OpCode>> = Lazy::new(|| {
         OpCode::new(0xac, "LDY", 3, 4, AddressingMode::Absolute),
         OpCode::new(0xbc, "LDY", 3, 4, AddressingMode::Absolute_X),
         OpCode::new(0xea, "NOP", 1, 2, AddressingMode::NoneAddressing),
+        OpCode::new(0x48, "PHA", 1, 3, AddressingMode::NoneAddressing),
         OpCode::new(0x38, "SEC", 1, 2, AddressingMode::ZeroPage),
         OpCode::new(0xf8, "SED", 1, 2, AddressingMode::ZeroPage),
         OpCode::new(0x78, "SEI", 1, 2, AddressingMode::ZeroPage),
