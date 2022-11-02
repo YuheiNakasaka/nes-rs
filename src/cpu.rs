@@ -64,6 +64,13 @@ impl CPU {
         self.stack_pointer = self.stack_pointer.wrapping_sub(1);
     }
 
+    fn and(&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        let value = self.mem_read(addr);
+        self.register_a &= value;
+        self.update_zero_and_negative_flags(self.register_a);
+    }
+
     fn clc(&mut self) {
         self.status = self.status & 0b1111_1110
     }
@@ -104,6 +111,13 @@ impl CPU {
             self.register_y -= 1;
         }
         self.update_zero_and_negative_flags(self.register_y);
+    }
+
+    fn eor(&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        let value = self.mem_read(addr);
+        self.register_a ^= value;
+        self.update_zero_and_negative_flags(self.register_a);
     }
 
     fn inc(&mut self, mode: &AddressingMode) {
@@ -151,6 +165,13 @@ impl CPU {
         let value = self.mem_read(addr);
         self.register_y = value;
         self.update_zero_and_negative_flags(self.register_y);
+    }
+
+    fn ora(&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        let value = self.mem_read(addr);
+        self.register_a |= value;
+        self.update_zero_and_negative_flags(self.register_a);
     }
 
     fn pha(&mut self) {
@@ -298,6 +319,9 @@ impl CPU {
                 .get(&code)
                 .expect(&format!("OpCode {:X} is not recognized", code));
             match code {
+                0x29 | 0x25 | 0x35 | 0x2d | 0x3d | 0x39 | 0x21 | 0x31 => {
+                    self.and(&opcode.mode);
+                }
                 0x18 => self.clc(),
                 0xD8 => self.cld(),
                 0x58 => self.cli(),
@@ -307,6 +331,9 @@ impl CPU {
                 }
                 0xCA => self.dex(),
                 0x88 => self.dey(),
+                0x49 | 0x45 | 0x55 | 0x4d | 0x5d | 0x59 | 0x41 | 0x51 => {
+                    self.eor(&opcode.mode);
+                }
                 0xE6 | 0xF6 | 0xEE | 0xFE => {
                     self.inc(&opcode.mode);
                 }
@@ -322,6 +349,9 @@ impl CPU {
                     self.ldy(&opcode.mode);
                 }
                 0xEA => {}
+                0x09 | 0x05 | 0x15 | 0x0d | 0x1d | 0x19 | 0x01 | 0x11 => {
+                    self.ora(&opcode.mode);
+                }
                 0x48 => self.pha(),
                 0x38 => self.sec(),
                 0xf8 => self.sed(),
