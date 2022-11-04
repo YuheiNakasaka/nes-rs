@@ -11,6 +11,7 @@ pub enum AddressingMode {
     Absolute,
     Absolute_X,
     Absolute_Y,
+    Indirect,
     Indirect_X,
     Indirect_Y,
     NoneAddressing,
@@ -76,7 +77,7 @@ impl CPU {
         hi << 8 | lo
     }
 
-    fn push_stack_u16(&mut self, data: u8) {
+    fn push_stack_u16(&mut self, data: u16) {
         let hi = (data >> 8) as u8;
         let lo = (data & 0xff) as u8;
         self.push_stack(hi);
@@ -188,6 +189,31 @@ impl CPU {
             self.register_y += 1;
         }
         self.update_zero_and_negative_flags(self.register_y);
+    }
+
+    fn jmp_absolute(&mut self) {
+        self.program_counter = self.mem_read_u16(self.program_counter);
+    }
+
+    // NOTE: An original 6502 has does not correctly fetch the target address if the indirect vector falls on a page boundary (e.g. $xxFF where xx is any value from $00 to $FF). In this case fetches the LSB from $xxFF as expected but takes the MSB from $xx00. This is fixed in some later chips like the 65SC02 so for compatibility always ensure the indirect vector is not at the end of the page.
+    // https://www.nesdev.org/obelisk-6502-guide/reference.html#JMP
+    fn jmp_indirect(&mut self) {
+        let addr = self.mem_read_u16(self.program_counter);
+        let indirect_addr = if addr & 0x00ff == 0x00ff {
+            let lo = self.mem_read(addr) as u16;
+            let hi = self.mem_read(addr & 0xff00) as u16;
+            hi << 8 | lo
+        } else {
+            self.mem_read_u16(addr)
+        };
+
+        self.program_counter = indirect_addr;
+    }
+
+    fn jsr(&mut self) {
+        // 仕様としては2を足せばいいだけだが命令の読み込みで既に+1をしてる分-1して帳尻合わせしてる
+        self.push_stack_u16(self.program_counter + 2 - 1);
+        self.program_counter = self.mem_read_u16(self.program_counter);
     }
 
     fn lda(&mut self, mode: &AddressingMode) {
@@ -450,6 +476,7 @@ impl CPU {
                 deref
             }
             AddressingMode::Accumulator => 0 as u16, // to avoid warning
+            AddressingMode::Indirect => 0 as u16,    // to avoid warning
             AddressingMode::NoneAddressing => panic!("mode: {:?} is not supported", mode),
         }
     }
@@ -495,6 +522,9 @@ impl CPU {
                 0xE6 | 0xF6 | 0xEE | 0xFE => self.inc(&opcode.mode),
                 0xE8 => self.inx(),
                 0xc8 => self.iny(),
+                0x20 => self.jsr(),
+                0x4c => self.jmp_absolute(),
+                0x6c => self.jmp_indirect(),
                 0xA9 | 0xA5 | 0xB5 | 0xAD | 0xBD | 0xB9 | 0xA1 | 0xB1 => self.lda(&opcode.mode),
                 0xA2 | 0xA6 | 0xB6 | 0xAE | 0xBE => self.ldx(&opcode.mode),
                 0xA0 | 0xA4 | 0xB4 | 0xAC | 0xBC => self.ldy(&opcode.mode),
@@ -814,4 +844,5 @@ mod test {
     // TODO: ASL/LSR/ROL/ROR
     // TODO: PHP/PLA/PLP
     // TODO: RTI/RTS
+    // TODO: JSR/JMP
 }
