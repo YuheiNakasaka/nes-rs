@@ -229,6 +229,21 @@ impl CPU {
         self.push_stack(self.register_a);
     }
 
+    fn php(&mut self) {
+        // https://www.nesdev.org/wiki/Status_flags
+        self.status = self.status | 0b0011_0000;
+        self.push_stack(self.status);
+    }
+
+    fn pla(&mut self) {
+        self.register_a = self.stack_pointer;
+        self.update_zero_and_negative_flags(self.register_a);
+    }
+
+    fn plp(&mut self) {
+        self.status = self.stack_pointer;
+    }
+
     fn rol_a(&mut self) {
         let mut value = self.register_a;
         let current_carry = self.status & 0b0000_0001;
@@ -459,6 +474,9 @@ impl CPU {
                 0xEA => {}
                 0x09 | 0x05 | 0x15 | 0x0d | 0x1d | 0x19 | 0x01 | 0x11 => self.ora(&opcode.mode),
                 0x48 => self.pha(),
+                0x08 => self.php(),
+                0x68 => self.pla(),
+                0x28 => self.plp(),
                 0x2a => self.rol_a(),
                 0x26 | 0x36 | 0x2e | 0x3e => self.rol_m(&opcode.mode),
                 0x6a => self.ror_a(),
@@ -763,4 +781,5 @@ mod test {
 
     // TODO: AND/EOR/ORA
     // TODO: ASL/LSR/ROL/ROR
+    // TODO: PHP/PLA/PLP
 }
