@@ -110,6 +110,8 @@ pub static CPU_OPS_CODES: Lazy<Vec<OpCode>> = Lazy::new(|| {
         OpCode::new(0x76, "ROR", 2, 6, AddressingMode::ZeroPage_X),
         OpCode::new(0x6e, "ROR", 3, 6, AddressingMode::Absolute),
         OpCode::new(0x7e, "ROR", 3, 7, AddressingMode::Absolute_X),
+        OpCode::new(0x40, "RTI", 1, 6, AddressingMode::NoneAddressing),
+        OpCode::new(0x60, "RTS", 1, 6, AddressingMode::NoneAddressing),
         OpCode::new(0x38, "SEC", 1, 2, AddressingMode::ZeroPage),
         OpCode::new(0xf8, "SED", 1, 2, AddressingMode::ZeroPage),
         OpCode::new(0x78, "SEI", 1, 2, AddressingMode::ZeroPage),

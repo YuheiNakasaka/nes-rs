@@ -60,9 +60,27 @@ impl CPU {
         self.mem_write(pos + 1, hi);
     }
 
+    fn pop_stack(&mut self) -> u8 {
+        self.stack_pointer = self.stack_pointer.wrapping_add(1);
+        self.mem_read(0x0100 as u16 + self.stack_pointer as u16)
+    }
+
     fn push_stack(&mut self, data: u8) {
         self.mem_write(0x0100 as u16 + self.stack_pointer as u16, data);
         self.stack_pointer = self.stack_pointer.wrapping_sub(1);
+    }
+
+    fn pop_stack_u16(&mut self) -> u16 {
+        let lo = self.pop_stack() as u16;
+        let hi = self.pop_stack() as u16;
+        hi << 8 | lo
+    }
+
+    fn push_stack_u16(&mut self, data: u8) {
+        let hi = (data >> 8) as u8;
+        let lo = (data & 0xff) as u8;
+        self.push_stack(hi);
+        self.push_stack(lo);
     }
 
     fn and(&mut self, mode: &AddressingMode) {
@@ -310,6 +328,17 @@ impl CPU {
         self.update_zero_and_negative_flags(value);
     }
 
+    fn rti(&mut self) {
+        self.status = self.pop_stack();
+        self.status = self.status & 0b1110_1111;
+        self.status = self.status | 0b0010_0000;
+        self.program_counter = self.pop_stack_u16();
+    }
+
+    fn rts(&mut self) {
+        self.program_counter = self.pop_stack_u16() + 1;
+    }
+
     fn sec(&mut self) {
         self.status = self.status | 0b0000_0001
     }
@@ -481,6 +510,8 @@ impl CPU {
                 0x26 | 0x36 | 0x2e | 0x3e => self.rol_m(&opcode.mode),
                 0x6a => self.ror_a(),
                 0x66 | 0x76 | 0x6e | 0x7e => self.ror_m(&opcode.mode),
+                0x40 => self.rti(),
+                0x60 => self.rts(),
                 0x38 => self.sec(),
                 0xf8 => self.sed(),
                 0x78 => self.sei(),
@@ -782,4 +813,5 @@ mod test {
     // TODO: AND/EOR/ORA
     // TODO: ASL/LSR/ROL/ROR
     // TODO: PHP/PLA/PLP
+    // TODO: RTI/RTS
 }
