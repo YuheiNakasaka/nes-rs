@@ -132,6 +132,19 @@ impl CPU {
         self.status = self.status & 0b1011_1111
     }
 
+    fn cmp(&mut self, mode: &AddressingMode, reg_value: u8) {
+        let addr = self.get_operand_address(mode);
+        let mem_value = self.mem_read(addr);
+
+        if reg_value >= mem_value {
+            self.status = self.status | 0b0000_0001;
+        } else {
+            self.status = self.status & 0b1111_1110;
+        }
+
+        self.update_zero_and_negative_flags(reg_value.wrapping_sub(mem_value));
+    }
+
     fn dec(&mut self, mode: &AddressingMode) {
         let addr = self.get_operand_address(mode);
         let value = self.mem_read(addr);
@@ -535,6 +548,11 @@ impl CPU {
                 0xD8 => self.cld(),
                 0x58 => self.cli(),
                 0xB8 => self.clv(),
+                0xc9 | 0xc5 | 0xd5 | 0xcd | 0xdd | 0xd9 | 0xc1 | 0xd1 => {
+                    self.cmp(&opcode.mode, self.register_a)
+                }
+                0xE0 | 0xE4 | 0xEC => self.cmp(&opcode.mode, self.register_x),
+                0xC0 | 0xC4 | 0xCc => self.cmp(&opcode.mode, self.register_y),
                 0xC6 | 0xD6 | 0xCE | 0xDE => self.dec(&opcode.mode),
                 0xCA => self.dex(),
                 0x88 => self.dey(),
@@ -867,4 +885,5 @@ mod test {
     // TODO: RTI/RTS
     // TODO: JSR/JMP
     // TODO: SBC
+    // TODO: CMP/CPX/CPY
 }
