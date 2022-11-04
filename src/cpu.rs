@@ -365,6 +365,26 @@ impl CPU {
         self.program_counter = self.pop_stack_u16() + 1;
     }
 
+    fn sbc(&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        let mem_value = self.mem_read(addr);
+        let reg_a = self.register_a;
+        let current_carry = self.status & 0b0000_0001;
+        self.register_a = reg_a - mem_value - (1 - current_carry);
+        self.update_zero_and_negative_flags(self.register_a);
+        if (reg_a as i8) - (mem_value as i8) - ((1 - current_carry) as i8) >= 0 {
+            self.status = self.status | 0b0000_0001;
+        } else {
+            self.status = self.status & 0b1111_1110;
+        }
+        // overflow flag
+        if (reg_a ^ mem_value) & 0x80 != 0 && (reg_a ^ self.register_a) & 0x80 != 0 {
+            self.status = self.status | 0b0100_0000;
+        } else {
+            self.status = self.status & 0b1011_1111;
+        }
+    }
+
     fn sec(&mut self) {
         self.status = self.status | 0b0000_0001
     }
@@ -542,6 +562,7 @@ impl CPU {
                 0x66 | 0x76 | 0x6e | 0x7e => self.ror_m(&opcode.mode),
                 0x40 => self.rti(),
                 0x60 => self.rts(),
+                0xe9 | 0xe5 | 0xf5 | 0xed | 0xfd | 0xf9 | 0xe1 | 0xf1 => self.sbc(&opcode.mode),
                 0x38 => self.sec(),
                 0xf8 => self.sed(),
                 0x78 => self.sei(),
@@ -845,4 +866,5 @@ mod test {
     // TODO: PHP/PLA/PLP
     // TODO: RTI/RTS
     // TODO: JSR/JMP
+    // TODO: SBC
 }
