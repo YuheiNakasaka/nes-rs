@@ -84,6 +84,30 @@ impl CPU {
         self.push_stack(lo);
     }
 
+    fn adc(&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        let mem_value = self.mem_read(addr);
+        let reg_a = self.register_a;
+        let current_carry = self.status & 0b0000_0001;
+        self.register_a = reg_a + mem_value + current_carry;
+        self.update_zero_and_negative_flags(self.register_a);
+
+        // NOTE: 怪しい...
+        // carry flag
+        if (reg_a as i32) + (mem_value as i32) + (current_carry as i32) > 0xFF {
+            self.status = self.status | 0b0000_0001;
+        } else {
+            self.status = self.status & 0b1111_1110;
+        }
+
+        // overflow flag
+        if (reg_a ^ mem_value) & 0x80 == 0 && (reg_a ^ self.register_a) & 0x80 != 0 {
+            self.status = self.status | 0b0100_0000;
+        } else {
+            self.status = self.status & 0b1011_1111;
+        }
+    }
+
     fn and(&mut self, mode: &AddressingMode) {
         let addr = self.get_operand_address(mode);
         let value = self.mem_read(addr);
@@ -443,11 +467,15 @@ impl CPU {
         let current_carry = self.status & 0b0000_0001;
         self.register_a = reg_a - mem_value - (1 - current_carry);
         self.update_zero_and_negative_flags(self.register_a);
-        if (reg_a as i8) - (mem_value as i8) - ((1 - current_carry) as i8) >= 0 {
+
+        // NOTE: 怪しい...
+        // carry flag
+        if (reg_a as i32) - (mem_value as i32) - ((1 - current_carry) as i32) >= 0 {
             self.status = self.status | 0b0000_0001;
         } else {
             self.status = self.status & 0b1111_1110;
         }
+
         // overflow flag
         if (reg_a ^ mem_value) & 0x80 != 0 && (reg_a ^ self.register_a) & 0x80 != 0 {
             self.status = self.status | 0b0100_0000;
@@ -611,7 +639,9 @@ impl CPU {
                 .get(&code)
                 .expect(&format!("OpCode {:X} is not recognized", code));
             match code {
-                0x29 | 0x25 | 0x35 | 0x2d | 0x3d | 0x39 | 0x21 | 0x31 => self.and(&opcode.mode),
+                /* ADC */
+                0x69 | 0x65 | 0x75 | 0x6D | 0x7D | 0x79 | 0x61 | 0x71 => self.adc(&opcode.mode),
+                0x29 | 0x25 | 0x35 | 0x2D | 0x3D | 0x39 | 0x21 | 0x31 => self.and(&opcode.mode),
                 0x0a => self.asl_a(),
                 0x06 | 0x16 | 0x0e | 0x1e => self.asl_m(&opcode.mode),
                 0x90 => self.bcc(),
@@ -964,4 +994,5 @@ mod test {
     // TODO: SBC
     // TODO: CMP/CPX/CPY
     // TODO: BCC/BCS/BEQ/BMI/BNE/BPL/BVC/BVS/BIT
+    // TODO: ADC
 }
