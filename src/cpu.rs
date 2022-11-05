@@ -116,6 +116,64 @@ impl CPU {
         self.update_zero_and_negative_flags(value);
     }
 
+    fn bcc(&mut self) {
+        self.branch(self.status & 0b0000_0001 == 0)
+    }
+
+    fn bcs(&mut self) {
+        self.branch(self.status & 0b0000_0001 != 0)
+    }
+
+    fn beq(&mut self) {
+        self.branch(self.status & 0b0000_0010 != 0)
+    }
+
+    fn bit(&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        let mem_value = self.mem_read(addr);
+
+        // V
+        if (mem_value & 0b0100_0000) >> 6 == 1 {
+            self.status = self.status | 0b0100_0000;
+        } else {
+            self.status = self.status & 0b1011_1111;
+        }
+
+        // N
+        if mem_value >> 7 == 1 {
+            self.status = self.status | 0b1000_0000;
+        } else {
+            self.status = self.status & 0b0111_1111;
+        }
+
+        // Z = A & M
+        if self.register_a & mem_value == 0 {
+            self.status = self.status | 0b0000_0010;
+        } else {
+            self.status = self.status & 0b1111_1101;
+        }
+    }
+
+    fn bmi(&mut self) {
+        self.branch(self.status & 0b1000_0000 != 0)
+    }
+
+    fn bne(&mut self) {
+        self.branch(self.status & 0b0000_0010 == 0)
+    }
+
+    fn bpl(&mut self) {
+        self.branch(self.status & 0b1000_0000 == 0)
+    }
+
+    fn brk(&mut self) {
+        return;
+    }
+
+    fn bvc(&mut self) {}
+
+    fn bvs(&mut self) {}
+
     fn clc(&mut self) {
         self.status = self.status & 0b1111_1110
     }
@@ -454,6 +512,18 @@ impl CPU {
         self.update_zero_and_negative_flags(self.register_a);
     }
 
+    fn branch(&mut self, condition: bool) {
+        if condition {
+            // -128~127
+            let jump = self.mem_read(self.program_counter) as i8;
+            let jump_addr = self
+                .program_counter
+                .wrapping_add(1)
+                .wrapping_add(jump as u16);
+            self.program_counter = jump_addr;
+        }
+    }
+
     fn update_zero_and_negative_flags(&mut self, result: u8) {
         if result == 0 {
             self.status = self.status | 0b0000_0010;
@@ -544,6 +614,16 @@ impl CPU {
                 0x29 | 0x25 | 0x35 | 0x2d | 0x3d | 0x39 | 0x21 | 0x31 => self.and(&opcode.mode),
                 0x0a => self.asl_a(),
                 0x06 | 0x16 | 0x0e | 0x1e => self.asl_m(&opcode.mode),
+                0x90 => self.bcc(),
+                0xB0 => self.bcs(),
+                0xF0 => self.beq(),
+                0x24 | 0x2C => self.bit(&opcode.mode),
+                0x30 => self.bmi(),
+                0xD0 => self.bne(),
+                0x10 => self.bpl(),
+                0x00 => self.brk(),
+                0x50 => self.bvc(),
+                0x70 => self.bvs(),
                 0x18 => self.clc(),
                 0xD8 => self.cld(),
                 0x58 => self.cli(),
@@ -593,9 +673,6 @@ impl CPU {
                 0x8A => self.txa(),
                 0x9A => self.txs(),
                 0x98 => self.tya(),
-                0x00 => {
-                    return;
-                }
                 _ => todo!(),
             }
 
@@ -886,4 +963,5 @@ mod test {
     // TODO: JSR/JMP
     // TODO: SBC
     // TODO: CMP/CPX/CPY
+    // TODO: BCC/BCS/BEQ/BMI/BNE/BPL/BVC/BVS/BIT
 }
