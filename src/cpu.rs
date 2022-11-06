@@ -1,4 +1,4 @@
-use crate::opcodes::OPCODES_MAP;
+use crate::{bus::Bus, opcodes::OPCODES_MAP};
 
 #[derive(Debug)]
 #[allow(non_camel_case_types)]
@@ -18,36 +18,10 @@ pub enum AddressingMode {
     Relative,
 }
 
-pub struct CPU {
-    pub register_a: u8,
-    pub register_x: u8,
-    pub register_y: u8,
-    pub stack_pointer: u8,
-    pub status: u8,
-    pub program_counter: u16,
-    memory: [u8; 0xFFFF],
-}
+pub trait Mem {
+    fn mem_read(&self, addr: u16) -> u8;
 
-impl CPU {
-    pub fn new() -> Self {
-        CPU {
-            register_a: 0,
-            register_x: 0,
-            register_y: 0,
-            stack_pointer: 0xfd,
-            status: 0b0010_0100,
-            program_counter: 0,
-            memory: [0; 0xFFFF],
-        }
-    }
-
-    pub fn mem_read(&self, addr: u16) -> u8 {
-        self.memory[addr as usize]
-    }
-
-    pub fn mem_write(&mut self, addr: u16, data: u8) {
-        self.memory[addr as usize] = data;
-    }
+    fn mem_write(&mut self, addr: u16, data: u8);
 
     fn mem_read_u16(&mut self, pos: u16) -> u16 {
         let lo = self.mem_read(pos) as u16;
@@ -60,6 +34,48 @@ impl CPU {
         let lo = (data & 0xff) as u8;
         self.mem_write(pos, lo);
         self.mem_write(pos + 1, hi);
+    }
+}
+
+impl Mem for CPU {
+    fn mem_read(&self, addr: u16) -> u8 {
+        self.bus.mem_read(addr)
+    }
+
+    fn mem_write(&mut self, addr: u16, data: u8) {
+        self.bus.mem_write(addr, data)
+    }
+
+    fn mem_read_u16(&mut self, pos: u16) -> u16 {
+        self.bus.mem_read_u16(pos)
+    }
+
+    fn mem_write_u16(&mut self, pos: u16, data: u16) {
+        self.bus.mem_write_u16(pos, data)
+    }
+}
+
+pub struct CPU {
+    pub register_a: u8,
+    pub register_x: u8,
+    pub register_y: u8,
+    pub stack_pointer: u8,
+    pub status: u8,
+    pub program_counter: u16,
+    pub bus: Bus,
+}
+
+impl CPU {
+    pub fn new() -> Self {
+        CPU {
+            register_a: 0,
+            register_x: 0,
+            register_y: 0,
+            stack_pointer: 0xfd,
+            status: 0b0010_0100,
+            program_counter: 0,
+            bus: Bus::new(),
+        }
     }
 
     fn pop_stack(&mut self) -> u8 {
@@ -639,9 +655,9 @@ impl CPU {
 
     pub fn load(&mut self, program: Vec<u8>) {
         // TODO: NESの場合は0x8000からロードする
-        // self.memory[0x8000..(0x8000 + program.len())].copy_from_slice(&program[..]);
-        // self.mem_write_u16(0xFFFC, 0x8000);
-        self.memory[0x0600..(0x0600 + program.len())].copy_from_slice(&program[..]);
+        for i in 0..(program.len() as u16) {
+            self.mem_write(0x0600 + i, program[i as usize]);
+        }
         self.mem_write_u16(0xFFFC, 0x0600);
     }
 

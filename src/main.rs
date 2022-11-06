@@ -1,4 +1,4 @@
-use nes_rs::cpu::CPU;
+use nes_rs::cpu::{Mem, CPU};
 use rand::Rng;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
