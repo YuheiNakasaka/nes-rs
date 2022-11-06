@@ -88,25 +88,28 @@ impl CPU {
     fn adc(&mut self, mode: &AddressingMode) {
         let addr = self.get_operand_address(mode);
         let mem_value = self.mem_read(addr);
-        let reg_a = self.register_a;
+        let reg_a = self.register_a.clone();
         let current_carry = self.status & 0b0000_0001;
-        self.register_a = reg_a + mem_value + current_carry;
-        self.update_zero_and_negative_flags(self.register_a);
+        let sum = reg_a as u16 + mem_value as u16 + current_carry as u16;
 
-        // NOTE: 怪しい...
         // carry flag
-        if (reg_a as i32) + (mem_value as i32) + (current_carry as i32) > 0xFF {
+        if sum > 0xFF {
             self.status = self.status | 0b0000_0001;
         } else {
             self.status = self.status & 0b1111_1110;
         }
 
         // overflow flag
-        if (reg_a ^ mem_value) & 0x80 == 0 && (reg_a ^ self.register_a) & 0x80 != 0 {
+        let result = sum as u8;
+        if (mem_value ^ result) & (result ^ self.register_a) & 0x80 != 0 {
             self.status = self.status | 0b0100_0000;
         } else {
             self.status = self.status & 0b1011_1111;
         }
+
+        // set accumulator
+        self.register_a = result;
+        self.update_zero_and_negative_flags(self.register_a);
     }
 
     fn and(&mut self, mode: &AddressingMode) {
@@ -468,25 +471,32 @@ impl CPU {
     fn sbc(&mut self, mode: &AddressingMode) {
         let addr = self.get_operand_address(mode);
         let mem_value = self.mem_read(addr);
-        let reg_a = self.register_a;
+        let reg_a = self.register_a.clone();
         let current_carry = self.status & 0b0000_0001;
-        self.register_a = reg_a - mem_value - (1 - current_carry);
-        self.update_zero_and_negative_flags(self.register_a);
+        // A - B - (1 - C) = A + (-B) - 1 + C = A + (-B - 1) + C
+        let sum = reg_a as u16
+            // (-B - 1)
+            + ((mem_value as i8).wrapping_neg().wrapping_sub(1) as u8) as u16
+            + current_carry as u16;
 
-        // NOTE: 怪しい...
         // carry flag
-        if (reg_a as i32) - (mem_value as i32) - ((1 - current_carry) as i32) >= 0 {
+        if sum > 0xFF {
             self.status = self.status | 0b0000_0001;
         } else {
             self.status = self.status & 0b1111_1110;
         }
 
         // overflow flag
-        if (reg_a ^ mem_value) & 0x80 != 0 && (reg_a ^ self.register_a) & 0x80 != 0 {
+        let result = sum as u8;
+        if (mem_value ^ result) & (result ^ self.register_a) & 0x80 != 0 {
             self.status = self.status | 0b0100_0000;
         } else {
             self.status = self.status & 0b1011_1111;
         }
+
+        // set accumulator
+        self.register_a = result;
+        self.update_zero_and_negative_flags(self.register_a);
     }
 
     fn sec(&mut self) {
