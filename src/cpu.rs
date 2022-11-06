@@ -15,6 +15,7 @@ pub enum AddressingMode {
     Indirect_X,
     Indirect_Y,
     NoneAddressing,
+    Relative,
 }
 
 pub struct CPU {
@@ -33,18 +34,18 @@ impl CPU {
             register_a: 0,
             register_x: 0,
             register_y: 0,
-            stack_pointer: 0,
-            status: 0,
+            stack_pointer: 0xfd,
+            status: 0b0010_0100,
             program_counter: 0,
             memory: [0; 0xFFFF],
         }
     }
 
-    fn mem_read(&self, addr: u16) -> u8 {
+    pub fn mem_read(&self, addr: u16) -> u8 {
         self.memory[addr as usize]
     }
 
-    fn mem_write(&mut self, addr: u16, data: u8) {
+    pub fn mem_write(&mut self, addr: u16, data: u8) {
         self.memory[addr as usize] = data;
     }
 
@@ -194,9 +195,13 @@ impl CPU {
         return;
     }
 
-    fn bvc(&mut self) {}
+    fn bvc(&mut self) {
+        self.branch(self.status & 0b0100_0000 == 0)
+    }
 
-    fn bvs(&mut self) {}
+    fn bvs(&mut self) {
+        self.branch(self.status & 0b0100_0000 != 0)
+    }
 
     fn clc(&mut self) {
         self.status = self.status & 0b1111_1110
@@ -608,6 +613,7 @@ impl CPU {
             }
             AddressingMode::Accumulator => 0 as u16, // to avoid warning
             AddressingMode::Indirect => 0 as u16,    // to avoid warning
+            AddressingMode::Relative => 0 as u16,    // to avoid warning
             AddressingMode::NoneAddressing => panic!("mode: {:?} is not supported", mode),
         }
     }
@@ -615,13 +621,18 @@ impl CPU {
     pub fn reset(&mut self) {
         self.register_a = 0;
         self.register_x = 0;
-        self.status = 0;
+        self.register_y = 0;
+        self.stack_pointer = 0xFD;
+        self.status = 0b0010_0100;
         self.program_counter = self.mem_read_u16(0xFFFC);
     }
 
     pub fn load(&mut self, program: Vec<u8>) {
-        self.memory[0x8000..(0x8000 + program.len())].copy_from_slice(&program[..]);
-        self.mem_write_u16(0xFFFC, 0x8000);
+        // TODO: NESの場合は0x8000からロードする
+        // self.memory[0x8000..(0x8000 + program.len())].copy_from_slice(&program[..]);
+        // self.mem_write_u16(0xFFFC, 0x8000);
+        self.memory[0x0600..(0x0600 + program.len())].copy_from_slice(&program[..]);
+        self.mem_write_u16(0xFFFC, 0x0600);
     }
 
     pub fn load_and_run(&mut self, program: Vec<u8>) {
@@ -631,15 +642,22 @@ impl CPU {
     }
 
     pub fn run(&mut self) {
+        self.run_with_callback(|_| {});
+    }
+
+    pub fn run_with_callback<F>(&mut self, mut callback: F)
+    where
+        F: FnMut(&mut CPU),
+    {
+        let ref opcodes = OPCODES_MAP;
+
         loop {
             let code = self.mem_read(self.program_counter);
             self.program_counter += 1;
             let program_counter_state = self.program_counter;
-            let opcode = OPCODES_MAP
-                .get(&code)
-                .expect(&format!("OpCode {:X} is not recognized", code));
+            let opcode = opcodes.get(&code).unwrap();
+
             match code {
-                /* ADC */
                 0x69 | 0x65 | 0x75 | 0x6D | 0x7D | 0x79 | 0x61 | 0x71 => self.adc(&opcode.mode),
                 0x29 | 0x25 | 0x35 | 0x2D | 0x3D | 0x39 | 0x21 | 0x31 => self.and(&opcode.mode),
                 0x0a => self.asl_a(),
@@ -703,12 +721,14 @@ impl CPU {
                 0x8A => self.txa(),
                 0x9A => self.txs(),
                 0x98 => self.tya(),
-                _ => todo!(),
+                _ => panic!("{} not implemented", code),
             }
 
             if program_counter_state == self.program_counter {
                 self.program_counter += (opcode.len - 1) as u16;
             }
+
+            callback(self);
         }
     }
 }
