@@ -63,7 +63,11 @@ pub fn trace(cpu: &CPU) -> String {
                         (begin as usize + 2).wrapping_add((address as i8) as usize);
                     format!("${:04x}", address)
                 }
-
+                AddressingMode::Accumulator
+                | AddressingMode::Indirect
+                | AddressingMode::Relative => {
+                    format!("")
+                }
                 _ => panic!(
                     "unexpected addressing mode {:?} has ops-len 2. code {:02x}",
                     ops.mode, ops.code

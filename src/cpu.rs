@@ -689,7 +689,7 @@ impl CPU {
                 let deref = deref_base.wrapping_add(self.register_y as u16);
                 deref
             }
-
+            AddressingMode::Accumulator | AddressingMode::Indirect | AddressingMode::Relative => 0,
             _ => {
                 panic!("mode {:?} is not supported", mode);
             }
