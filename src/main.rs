@@ -1,3 +1,5 @@
+use nes_rs::bus::Bus;
+use nes_rs::cartridge::Rom;
 use nes_rs::cpu::{Mem, CPU};
 use rand::Rng;
 use sdl2::event::Event;
@@ -116,10 +118,15 @@ fn main() {
         .create_texture_target(PixelFormatEnum::RGB24, 32, 32)
         .unwrap();
 
+    // load the game to rom
+    let bytes: Vec<u8> = std::fs::read("snake.nes").unwrap();
+    let rom = Rom::new(&bytes).unwrap();
+
     // init game
-    let mut cpu = CPU::new();
-    cpu.load(game_code);
+    let bus = Bus::new(rom);
+    let mut cpu = CPU::new(bus);
     cpu.reset();
+
     let mut screen_state = [0 as u8; 32 * 3 * 32];
     let mut rng = rand::thread_rng();
 
