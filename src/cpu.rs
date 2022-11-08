@@ -707,9 +707,9 @@ impl CPU {
 
     pub fn load(&mut self, program: Vec<u8>) {
         for i in 0..(program.len() as u16) {
-            self.mem_write(0x8600 + i, program[i as usize]);
+            self.mem_write(0x0600 + i, program[i as usize]);
         }
-        self.mem_write_u16(0xFFFC, 0x8600);
+        // self.mem_write_u16(0xFFFC, 0x8600);
     }
 
     pub fn load_and_run(&mut self, program: Vec<u8>) {
