@@ -3,7 +3,6 @@ use crate::{bus::Bus, opcodes::OPCODES_MAP};
 #[derive(Debug)]
 #[allow(non_camel_case_types)]
 pub enum AddressingMode {
-    Accumulator,
     Immediate,
     ZeroPage,
     ZeroPage_X,
@@ -11,11 +10,12 @@ pub enum AddressingMode {
     Absolute,
     Absolute_X,
     Absolute_Y,
-    Indirect,
     Indirect_X,
     Indirect_Y,
     NoneAddressing,
-    Relative,
+    // Accumulator,
+    // Indirect,
+    // Relative,
 }
 
 pub trait Mem {
@@ -104,9 +104,10 @@ impl CPU {
     fn adc(&mut self, mode: &AddressingMode) {
         let addr = self.get_operand_address(mode);
         let mem_value = self.mem_read(addr);
-        let reg_a = self.register_a.clone();
-        let current_carry = self.status & 0b0000_0001;
-        let sum = reg_a as u16 + mem_value as u16 + current_carry as u16;
+
+        let a = self.register_a.clone();
+        let c = self.status & 0b0000_0001;
+        let sum = a as u16 + mem_value as u16 + c as u16;
 
         // carry flag
         if sum > 0xFF {
@@ -394,17 +395,19 @@ impl CPU {
 
     fn php(&mut self) {
         // https://www.nesdev.org/wiki/Status_flags
-        self.status = self.status | 0b0011_0000;
-        self.push_stack(self.status);
+        let flag = self.status | 0b0011_0000;
+        self.push_stack(flag);
     }
 
     fn pla(&mut self) {
-        self.register_a = self.stack_pointer;
+        self.register_a = self.pop_stack();
         self.update_zero_and_negative_flags(self.register_a);
     }
 
     fn plp(&mut self) {
-        self.status = self.stack_pointer;
+        self.status = self.pop_stack();
+        self.status = self.status & 0b1110_1111;
+        self.status = self.status | 0b0010_0000;
     }
 
     fn rol_a(&mut self) {
@@ -487,13 +490,16 @@ impl CPU {
     fn sbc(&mut self, mode: &AddressingMode) {
         let addr = self.get_operand_address(mode);
         let mem_value = self.mem_read(addr);
-        let reg_a = self.register_a.clone();
-        let current_carry = self.status & 0b0000_0001;
+
+        let a = self.register_a.clone();
+        let b = (mem_value as i8).wrapping_neg().wrapping_sub(1) as u8;
+        let c = self.status & 0b0000_0001;
+
         // A - B - (1 - C) = A + (-B) - 1 + C = A + (-B - 1) + C
-        let sum = reg_a as u16
+        let sum = a as u16
             // (-B - 1)
-            + ((mem_value as i8).wrapping_neg().wrapping_sub(1) as u8) as u16
-            + current_carry as u16;
+            + b as u16
+            + c as u16;
 
         // carry flag
         if sum > 0xFF {
@@ -504,7 +510,7 @@ impl CPU {
 
         // overflow flag
         let result = sum as u8;
-        if (mem_value ^ result) & (result ^ self.register_a) & 0x80 != 0 {
+        if (b ^ result) & (result ^ self.register_a) & 0x80 != 0 {
             self.status = self.status | 0b0100_0000;
         } else {
             self.status = self.status & 0b1011_1111;
@@ -637,9 +643,6 @@ impl CPU {
                 let deref = deref_base.wrapping_add(self.register_y as u16);
                 deref
             }
-            AddressingMode::Accumulator => 0 as u16, // to avoid warning
-            AddressingMode::Indirect => 0 as u16,    // to avoid warning
-            AddressingMode::Relative => 0 as u16,    // to avoid warning
             AddressingMode::NoneAddressing => panic!("mode: {:?} is not supported", mode),
         }
     }
@@ -689,7 +692,6 @@ impl CPU {
                 let deref = deref_base.wrapping_add(self.register_y as u16);
                 deref
             }
-            AddressingMode::Accumulator | AddressingMode::Indirect | AddressingMode::Relative => 0,
             _ => {
                 panic!("mode {:?} is not supported", mode);
             }
