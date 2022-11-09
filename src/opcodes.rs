@@ -270,6 +270,19 @@ pub static CPU_OPS_CODES: Lazy<Vec<OpCode>> = Lazy::new(|| {
         OpCode::new(0x7b, "*RRA", 3, 7, AddressingMode::Absolute_Y),
         OpCode::new(0x63, "*RRA", 2, 8, AddressingMode::Indirect_X),
         OpCode::new(0x73, "*RRA", 2, 8, AddressingMode::Indirect_Y),
+        OpCode::new(0xCB, "*AXS", 2, 2, AddressingMode::Immediate),
+        OpCode::new(0x6B, "*ARR", 2, 2, AddressingMode::Immediate),
+        OpCode::new(0x0b, "*ANC", 2, 2, AddressingMode::Immediate),
+        OpCode::new(0x2b, "*ANC", 2, 2, AddressingMode::Immediate),
+        OpCode::new(0x4b, "*ALR", 2, 2, AddressingMode::Immediate),
+        OpCode::new(0xab, "*LXA", 2, 3, AddressingMode::Immediate),
+        OpCode::new(0x8b, "*XAA", 2, 3, AddressingMode::Immediate),
+        OpCode::new(0xbb, "*LAS", 3, 2, AddressingMode::Absolute_Y),
+        OpCode::new(0x9b, "*TAS", 3, 2, AddressingMode::Absolute_Y),
+        OpCode::new(0x93, "*AHX", 2, 8, AddressingMode::Indirect_Y),
+        OpCode::new(0x9f, "*AHX", 3, 4, AddressingMode::Absolute_Y),
+        OpCode::new(0x9e, "*SHX", 3, 4, AddressingMode::Absolute_Y),
+        OpCode::new(0x9c, "*SHY", 3, 4, AddressingMode::Absolute_X),
     ]
 });
 

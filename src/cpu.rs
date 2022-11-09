@@ -950,6 +950,130 @@ impl CPU {
                 0x47 | 0x57 | 0x4F | 0x5f | 0x5b | 0x43 | 0x53 => self.unofficial_sre(&opcode.mode),
                 /* RRA */
                 0x67 | 0x77 | 0x6f | 0x7f | 0x7b | 0x63 | 0x73 => self.unofficial_rra(&opcode.mode),
+                /* AXS */
+                0xCB => {
+                    let addr = self.get_operand_address(&opcode.mode);
+                    let data = self.mem_read(addr);
+                    let x_and_a = self.register_x & self.register_a;
+                    let result = x_and_a.wrapping_sub(data);
+
+                    if data <= x_and_a {
+                        self.status = self.status | 0b0000_0001;
+                    }
+                    self.update_zero_and_negative_flags(result);
+
+                    self.register_x = result;
+                }
+                /* ARR */
+                0x6B => {
+                    let addr = self.get_operand_address(&opcode.mode);
+                    let data = self.mem_read(addr);
+                    self.register_a = data & self.register_a;
+                    self.update_zero_and_negative_flags(self.register_a);
+                    self.ror_a();
+
+                    let result = self.register_a;
+                    let bit_5 = (result >> 5) & 1;
+                    let bit_6 = (result >> 6) & 1;
+
+                    if bit_6 == 1 {
+                        self.status = self.status | 0b0000_0001;
+                    } else {
+                        self.status = self.status & 0b1111_1110;
+                    }
+
+                    if bit_5 ^ bit_6 == 1 {
+                        self.status = self.status | 0b0100_0000;
+                    } else {
+                        self.status = self.status & 0b1011_1111;
+                    }
+
+                    self.update_zero_and_negative_flags(result);
+                }
+                /* ANC */
+                0x0b | 0x2b => {
+                    let addr = self.get_operand_address(&opcode.mode);
+                    let data = self.mem_read(addr);
+                    self.register_a = data & self.register_a;
+                    self.update_zero_and_negative_flags(self.register_a);
+                    if self.status == 0b1000_0000 {
+                        self.status = self.status | 0b0000_0001;
+                    } else {
+                        self.status = self.status & 0b1111_1110;
+                    }
+                }
+                /* ALR */
+                0x4b => {
+                    let addr = self.get_operand_address(&opcode.mode);
+                    let data = self.mem_read(addr);
+                    self.register_a = data & self.register_a;
+                    self.update_zero_and_negative_flags(self.register_a);
+                    self.lsr_a();
+                }
+                /* LXA */
+                0xab => {
+                    self.lda(&opcode.mode);
+                    self.tax();
+                }
+                /* XAA */
+                0x8b => {
+                    self.register_a = self.register_x;
+                    self.update_zero_and_negative_flags(self.register_a);
+                    let addr = self.get_operand_address(&opcode.mode);
+                    let data = self.mem_read(addr);
+                    self.register_a = data & self.register_a;
+                    self.update_zero_and_negative_flags(self.register_a);
+                }
+                /* LAS */
+                0xbb => {
+                    let addr = self.get_operand_address(&opcode.mode);
+                    let mut data = self.mem_read(addr);
+                    data = data & self.stack_pointer;
+                    self.register_a = data;
+                    self.register_x = data;
+                    self.stack_pointer = data;
+                    self.update_zero_and_negative_flags(data);
+                }
+                /* TAS */
+                0x9b => {
+                    let data = self.register_a & self.register_x;
+                    self.stack_pointer = data;
+                    let mem_address =
+                        self.mem_read_u16(self.program_counter) + self.register_y as u16;
+
+                    let data = ((mem_address >> 8) as u8 + 1) & self.stack_pointer;
+                    self.mem_write(mem_address, data)
+                }
+                /* AHX  Indirect Y */
+                0x93 => {
+                    let pos: u8 = self.mem_read(self.program_counter);
+                    let mem_address = self.mem_read_u16(pos as u16) + self.register_y as u16;
+                    let data = self.register_a & self.register_x & (mem_address >> 8) as u8;
+                    self.mem_write(mem_address, data)
+                }
+                /* AHX Absolute Y*/
+                0x9f => {
+                    let mem_address =
+                        self.mem_read_u16(self.program_counter) + self.register_y as u16;
+
+                    let data = self.register_a & self.register_x & (mem_address >> 8) as u8;
+                    self.mem_write(mem_address, data)
+                }
+                /* SHX */
+                0x9e => {
+                    let mem_address =
+                        self.mem_read_u16(self.program_counter) + self.register_y as u16;
+
+                    let data = self.register_x & ((mem_address >> 8) as u8 + 1);
+                    self.mem_write(mem_address, data)
+                }
+                /* SHY */
+                0x9c => {
+                    let mem_address =
+                        self.mem_read_u16(self.program_counter) + self.register_x as u16;
+                    let data = self.register_y & ((mem_address >> 8) as u8 + 1);
+                    self.mem_write(mem_address, data)
+                }
                 _ => panic!("{} not implemented", code),
             }
 
