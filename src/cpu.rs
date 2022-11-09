@@ -463,7 +463,7 @@ impl CPU {
         self.update_zero_and_negative_flags(self.register_a);
     }
 
-    fn ror_m(&mut self, mode: &AddressingMode) {
+    fn ror_m(&mut self, mode: &AddressingMode) -> u8 {
         let addr = self.get_operand_address(mode);
         let mut value = self.mem_read(addr);
         let current_carry = self.status & 0b0000_0001;
@@ -478,6 +478,7 @@ impl CPU {
         }
         self.mem_write(addr, value);
         self.update_zero_and_negative_flags(value);
+        value
     }
 
     fn rti(&mut self) {
@@ -641,6 +642,34 @@ impl CPU {
     fn unofficial_sre(&mut self, mode: &AddressingMode) {
         let data = self.lsr_m(mode);
         self.register_a = data ^ self.register_a;
+        self.update_zero_and_negative_flags(self.register_a);
+    }
+
+    fn unofficial_rra(&mut self, mode: &AddressingMode) {
+        let data = self.ror_m(mode);
+
+        // TODO: 共通化するためあとでリファクタリング
+        let a = self.register_a.clone();
+        let c = self.status & 0b0000_0001;
+        let sum = a as u16 + data as u16 + c as u16;
+
+        // carry flag
+        if sum > 0xFF {
+            self.status = self.status | 0b0000_0001;
+        } else {
+            self.status = self.status & 0b1111_1110;
+        }
+
+        // overflow flag
+        let result = sum as u8;
+        if (data ^ result) & (result ^ self.register_a) & 0x80 != 0 {
+            self.status = self.status | 0b0100_0000;
+        } else {
+            self.status = self.status & 0b1011_1111;
+        }
+
+        // set accumulator
+        self.register_a = result;
         self.update_zero_and_negative_flags(self.register_a);
     }
 
@@ -849,7 +878,9 @@ impl CPU {
                     self.rol_m(&opcode.mode);
                 }
                 0x6a => self.ror_a(),
-                0x66 | 0x76 | 0x6e | 0x7e => self.ror_m(&opcode.mode),
+                0x66 | 0x76 | 0x6e | 0x7e => {
+                    self.ror_m(&opcode.mode);
+                }
                 0x40 => self.rti(),
                 0x60 => self.rts(),
                 0xe9 | 0xe5 | 0xf5 | 0xed | 0xfd | 0xf9 | 0xe1 | 0xf1 => self.sbc(&opcode.mode),
@@ -917,6 +948,8 @@ impl CPU {
                 0x27 | 0x37 | 0x2F | 0x3F | 0x3b | 0x33 | 0x23 => self.unofficial_rla(&opcode.mode),
                 /* SRE */
                 0x47 | 0x57 | 0x4F | 0x5f | 0x5b | 0x43 | 0x53 => self.unofficial_sre(&opcode.mode),
+                /* RRA */
+                0x67 | 0x77 | 0x6f | 0x7f | 0x7b | 0x63 | 0x73 => self.unofficial_rra(&opcode.mode),
                 _ => panic!("{} not implemented", code),
             }
 
