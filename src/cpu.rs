@@ -428,7 +428,7 @@ impl CPU {
         self.update_zero_and_negative_flags(self.register_a);
     }
 
-    fn rol_m(&mut self, mode: &AddressingMode) {
+    fn rol_m(&mut self, mode: &AddressingMode) -> u8 {
         let addr = self.get_operand_address(mode);
         let mut value = self.mem_read(addr);
         let current_carry = self.status & 0b0000_0001;
@@ -443,6 +443,7 @@ impl CPU {
         }
         self.mem_write(addr, value);
         self.update_zero_and_negative_flags(value);
+        value
     }
 
     fn ror_a(&mut self) {
@@ -627,6 +628,12 @@ impl CPU {
     fn unofficial_slo(&mut self, mode: &AddressingMode) {
         let data = self.asl_m(mode);
         self.register_a = data | self.register_a;
+        self.update_zero_and_negative_flags(self.register_a);
+    }
+
+    fn unofficial_rla(&mut self, mode: &AddressingMode) {
+        let data = self.rol_m(mode);
+        self.register_a = data & self.register_a;
         self.update_zero_and_negative_flags(self.register_a);
     }
 
@@ -829,7 +836,9 @@ impl CPU {
                 0x68 => self.pla(),
                 0x28 => self.plp(),
                 0x2a => self.rol_a(),
-                0x26 | 0x36 | 0x2e | 0x3e => self.rol_m(&opcode.mode),
+                0x26 | 0x36 | 0x2e | 0x3e => {
+                    self.rol_m(&opcode.mode);
+                }
                 0x6a => self.ror_a(),
                 0x66 | 0x76 | 0x6e | 0x7e => self.ror_m(&opcode.mode),
                 0x40 => self.rti(),
@@ -895,6 +904,8 @@ impl CPU {
                 0xe7 | 0xf7 | 0xef | 0xff | 0xfb | 0xe3 | 0xf3 => self.unofficial_isb(&opcode.mode),
                 /* SLO */
                 0x07 | 0x17 | 0x0F | 0x1f | 0x1b | 0x03 | 0x13 => self.unofficial_slo(&opcode.mode),
+                /* RLA */
+                0x27 | 0x37 | 0x2F | 0x3F | 0x3b | 0x33 | 0x23 => self.unofficial_rla(&opcode.mode),
                 _ => panic!("{} not implemented", code),
             }
 
