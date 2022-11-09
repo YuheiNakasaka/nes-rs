@@ -223,6 +223,10 @@ pub static CPU_OPS_CODES: Lazy<Vec<OpCode>> = Lazy::new(|| {
         OpCode::new(0xbf, "*LAX", 3, 4, AddressingMode::Absolute_Y),
         OpCode::new(0xa3, "*LAX", 2, 6, AddressingMode::Indirect_X),
         OpCode::new(0xb3, "*LAX", 2, 5, AddressingMode::Indirect_Y),
+        OpCode::new(0x87, "*SAX", 2, 3, AddressingMode::ZeroPage),
+        OpCode::new(0x97, "*SAX", 2, 4, AddressingMode::ZeroPage_Y),
+        OpCode::new(0x8f, "*SAX", 3, 4, AddressingMode::Absolute),
+        OpCode::new(0x83, "*SAX", 2, 6, AddressingMode::Indirect_X),
     ]
 });
 
