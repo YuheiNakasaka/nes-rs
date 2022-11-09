@@ -285,12 +285,13 @@ impl CPU {
         self.update_zero_and_negative_flags(self.register_a);
     }
 
-    fn inc(&mut self, mode: &AddressingMode) {
+    fn inc(&mut self, mode: &AddressingMode) -> u8 {
         let addr = self.get_operand_address(mode);
         let value = self.mem_read(addr);
         let result = value.wrapping_add(1);
         self.mem_write(addr, result);
         self.update_zero_and_negative_flags(result);
+        result
     }
 
     fn inx(&mut self) {
@@ -589,6 +590,39 @@ impl CPU {
         }
     }
 
+    fn unofficial_isb(&mut self, mode: &AddressingMode) {
+        let data = self.inc(mode);
+
+        let a = self.register_a.clone();
+        let b = (data as i8).wrapping_neg().wrapping_sub(1) as u8;
+        let c = self.status & 0b0000_0001;
+
+        // A - B - (1 - C) = A + (-B) - 1 + C = A + (-B - 1) + C
+        let sum = a as u16
+            // (-B - 1)
+            + b as u16
+            + c as u16;
+
+        // carry flag
+        if sum > 0xFF {
+            self.status = self.status | 0b0000_0001;
+        } else {
+            self.status = self.status & 0b1111_1110;
+        }
+
+        // overflow flag
+        let result = sum as u8;
+        if (b ^ result) & (result ^ self.register_a) & 0x80 != 0 {
+            self.status = self.status | 0b0100_0000;
+        } else {
+            self.status = self.status & 0b1011_1111;
+        }
+
+        // set accumulator
+        self.register_a = result;
+        self.update_zero_and_negative_flags(self.register_a);
+    }
+
     fn update_zero_and_negative_flags(&mut self, result: u8) {
         if result == 0 {
             self.status = self.status | 0b0000_0010;
@@ -766,7 +800,9 @@ impl CPU {
                 0xCA => self.dex(),
                 0x88 => self.dey(),
                 0x49 | 0x45 | 0x55 | 0x4d | 0x5d | 0x59 | 0x41 | 0x51 => self.eor(&opcode.mode),
-                0xE6 | 0xF6 | 0xEE | 0xFE => self.inc(&opcode.mode),
+                0xE6 | 0xF6 | 0xEE | 0xFE => {
+                    self.inc(&opcode.mode);
+                }
                 0xE8 => self.inx(),
                 0xc8 => self.iny(),
                 0x20 => self.jsr(),
@@ -846,6 +882,8 @@ impl CPU {
 
                     self.update_zero_and_negative_flags(self.register_a.wrapping_sub(data));
                 }
+                /* ISB */
+                0xe7 | 0xf7 | 0xef | 0xff | 0xfb | 0xe3 | 0xf3 => self.unofficial_isb(&opcode.mode),
                 _ => panic!("{} not implemented", code),
             }
 
