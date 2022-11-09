@@ -371,7 +371,7 @@ impl CPU {
         self.update_zero_and_negative_flags(self.register_a);
     }
 
-    fn lsr_m(&mut self, mode: &AddressingMode) {
+    fn lsr_m(&mut self, mode: &AddressingMode) -> u8 {
         let addr = self.get_operand_address(mode);
         let mut value = self.mem_read(addr);
         if value & 1 == 1 {
@@ -382,6 +382,7 @@ impl CPU {
         value = value >> 1;
         self.mem_write(addr, value);
         self.update_zero_and_negative_flags(value);
+        value
     }
 
     fn ora(&mut self, mode: &AddressingMode) {
@@ -637,6 +638,12 @@ impl CPU {
         self.update_zero_and_negative_flags(self.register_a);
     }
 
+    fn unofficial_sre(&mut self, mode: &AddressingMode) {
+        let data = self.lsr_m(mode);
+        self.register_a = data ^ self.register_a;
+        self.update_zero_and_negative_flags(self.register_a);
+    }
+
     fn update_zero_and_negative_flags(&mut self, result: u8) {
         if result == 0 {
             self.status = self.status | 0b0000_0010;
@@ -828,7 +835,9 @@ impl CPU {
                 0xA2 | 0xA6 | 0xB6 | 0xAE | 0xBE => self.ldx(&opcode.mode),
                 0xA0 | 0xA4 | 0xB4 | 0xAC | 0xBC => self.ldy(&opcode.mode),
                 0x4a => self.lsr_a(),
-                0x46 | 0x56 | 0x4e | 0x5e => self.lsr_m(&opcode.mode),
+                0x46 | 0x56 | 0x4e | 0x5e => {
+                    self.lsr_m(&opcode.mode);
+                }
                 0xEA => {}
                 0x09 | 0x05 | 0x15 | 0x0d | 0x1d | 0x19 | 0x01 | 0x11 => self.ora(&opcode.mode),
                 0x48 => self.pha(),
@@ -906,6 +915,8 @@ impl CPU {
                 0x07 | 0x17 | 0x0F | 0x1f | 0x1b | 0x03 | 0x13 => self.unofficial_slo(&opcode.mode),
                 /* RLA */
                 0x27 | 0x37 | 0x2F | 0x3F | 0x3b | 0x33 | 0x23 => self.unofficial_rla(&opcode.mode),
+                /* SRE */
+                0x47 | 0x57 | 0x4F | 0x5f | 0x5b | 0x43 | 0x53 => self.unofficial_sre(&opcode.mode),
                 _ => panic!("{} not implemented", code),
             }
 
