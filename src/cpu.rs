@@ -148,7 +148,7 @@ impl CPU {
         self.update_zero_and_negative_flags(self.register_a);
     }
 
-    fn asl_m(&mut self, mode: &AddressingMode) {
+    fn asl_m(&mut self, mode: &AddressingMode) -> u8 {
         let addr = self.get_operand_address(mode);
         let mut value = self.mem_read(addr);
         if value >> 7 == 1 {
@@ -159,6 +159,7 @@ impl CPU {
         value = value << 1;
         self.mem_write(addr, value);
         self.update_zero_and_negative_flags(value);
+        value
     }
 
     fn bcc(&mut self) {
@@ -623,6 +624,12 @@ impl CPU {
         self.update_zero_and_negative_flags(self.register_a);
     }
 
+    fn unofficial_slo(&mut self, mode: &AddressingMode) {
+        let data = self.asl_m(mode);
+        self.register_a = data | self.register_a;
+        self.update_zero_and_negative_flags(self.register_a);
+    }
+
     fn update_zero_and_negative_flags(&mut self, result: u8) {
         if result == 0 {
             self.status = self.status | 0b0000_0010;
@@ -776,7 +783,9 @@ impl CPU {
                 0x69 | 0x65 | 0x75 | 0x6D | 0x7D | 0x79 | 0x61 | 0x71 => self.adc(&opcode.mode),
                 0x29 | 0x25 | 0x35 | 0x2D | 0x3D | 0x39 | 0x21 | 0x31 => self.and(&opcode.mode),
                 0x0a => self.asl_a(),
-                0x06 | 0x16 | 0x0e | 0x1e => self.asl_m(&opcode.mode),
+                0x06 | 0x16 | 0x0e | 0x1e => {
+                    self.asl_m(&opcode.mode);
+                }
                 0x90 => self.bcc(),
                 0xB0 => self.bcs(),
                 0xF0 => self.beq(),
@@ -884,6 +893,8 @@ impl CPU {
                 }
                 /* ISB */
                 0xe7 | 0xf7 | 0xef | 0xff | 0xfb | 0xe3 | 0xf3 => self.unofficial_isb(&opcode.mode),
+                /* SLO */
+                0x07 | 0x17 | 0x0F | 0x1f | 0x1b | 0x03 | 0x13 => self.unofficial_slo(&opcode.mode),
                 _ => panic!("{} not implemented", code),
             }
 
