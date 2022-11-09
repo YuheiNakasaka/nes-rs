@@ -836,7 +836,7 @@ impl CPU {
                 0x30 => self.bmi(),
                 0xD0 => self.bne(),
                 0x10 => self.bpl(),
-                0x00 => self.brk(),
+                0x00 => return self.brk(),
                 0x50 => self.bvc(),
                 0x70 => self.bvs(),
                 0x18 => self.clc(),
