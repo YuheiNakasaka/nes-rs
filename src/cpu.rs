@@ -802,6 +802,21 @@ impl CPU {
                 0x8A => self.txa(),
                 0x9A => self.txs(),
                 0x98 => self.tya(),
+                // unofficial opcodes
+                // https://www.nesdev.org/wiki/Programming_with_unofficial_opcodes
+                /* NOPs */
+                // IGN a/ IGN a,X/ IGN d / IGN d,X
+                0x04 | 0x44 | 0x64 | 0x14 | 0x34 | 0x54 | 0x74 | 0xd4 | 0xf4 | 0x0c | 0x1c
+                | 0x3c | 0x5c | 0x7c | 0xdc | 0xfc => {
+                    let addr = self.get_operand_address(&opcode.mode);
+                    self.mem_read(addr);
+                }
+                0x02 | 0x12 | 0x22 | 0x32 | 0x42 | 0x52 | 0x62 | 0x72 | 0x92 | 0xb2 | 0xd2
+                | 0xf2 => {}
+                // NOP
+                0x1a | 0x3a | 0x5a | 0x7a | 0xda | 0xfa => {}
+                // SKB
+                0x80 | 0x82 | 0x89 | 0xc2 | 0xe2 => {}
                 _ => panic!("{} not implemented", code),
             }
 
