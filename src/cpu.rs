@@ -833,6 +833,19 @@ impl CPU {
                 }
                 /* SBC */
                 0xeb => self.sbc(&opcode.mode),
+                /* DCP */
+                0xc7 | 0xd7 | 0xCF | 0xdF | 0xdb | 0xd3 | 0xc3 => {
+                    let addr = self.get_operand_address(&opcode.mode);
+                    let mut data = self.mem_read(addr);
+                    data = data.wrapping_sub(1);
+                    self.mem_write(addr, data);
+
+                    if data <= self.register_a {
+                        self.status = self.status | 0x0000_0001;
+                    }
+
+                    self.update_zero_and_negative_flags(self.register_a.wrapping_sub(data));
+                }
                 _ => panic!("{} not implemented", code),
             }
 
