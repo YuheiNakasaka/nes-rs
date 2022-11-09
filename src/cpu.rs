@@ -817,6 +817,14 @@ impl CPU {
                 0x1a | 0x3a | 0x5a | 0x7a | 0xda | 0xfa => {}
                 // SKB
                 0x80 | 0x82 | 0x89 | 0xc2 | 0xe2 => {}
+                /* LAX */
+                0xa7 | 0xb7 | 0xaf | 0xbf | 0xa3 | 0xb3 => {
+                    let addr = self.get_operand_address(&opcode.mode);
+                    let data = self.mem_read(addr);
+                    self.register_a = data;
+                    self.update_zero_and_negative_flags(self.register_a);
+                    self.register_x = self.register_a;
+                }
                 _ => panic!("{} not implemented", code),
             }
 
