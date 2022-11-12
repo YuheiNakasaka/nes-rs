@@ -19,11 +19,11 @@ pub enum AddressingMode {
 }
 
 pub trait Mem {
-    fn mem_read(&self, addr: u16) -> u8;
+    fn mem_read(&mut self, addr: u16) -> u8;
 
     fn mem_write(&mut self, addr: u16, data: u8);
 
-    fn mem_read_u16(&self, pos: u16) -> u16 {
+    fn mem_read_u16(&mut self, pos: u16) -> u16 {
         let lo = self.mem_read(pos) as u16;
         let hi = self.mem_read(pos + 1) as u16;
         (hi << 8) | (lo as u16)
@@ -38,7 +38,7 @@ pub trait Mem {
 }
 
 impl Mem for CPU {
-    fn mem_read(&self, addr: u16) -> u8 {
+    fn mem_read(&mut self, addr: u16) -> u8 {
         self.bus.mem_read(addr)
     }
 
@@ -46,7 +46,7 @@ impl Mem for CPU {
         self.bus.mem_write(addr, data)
     }
 
-    fn mem_read_u16(&self, pos: u16) -> u16 {
+    fn mem_read_u16(&mut self, pos: u16) -> u16 {
         self.bus.mem_read_u16(pos)
     }
 
@@ -731,7 +731,7 @@ impl CPU {
         }
     }
 
-    pub fn get_absolute_address(&self, mode: &AddressingMode, addr: u16) -> u16 {
+    pub fn get_absolute_address(&mut self, mode: &AddressingMode, addr: u16) -> u16 {
         match mode {
             AddressingMode::ZeroPage => self.mem_read(addr) as u16,
 
@@ -1362,10 +1362,8 @@ mod test {
         let bus = Bus::new(test::test_rom());
         let mut cpu = CPU::new(bus);
         cpu.load_and_run(vec![0xa9, 0x55, 0x85, 0x00]);
-        assert_eq!(
-            cpu.mem_read(cpu.mem_read(cpu.program_counter - 2) as u16),
-            0x55
-        );
+        let mem = cpu.mem_read(cpu.program_counter - 2) as u16;
+        assert_eq!(cpu.mem_read(mem), 0x55);
     }
 
     #[test]
@@ -1373,10 +1371,8 @@ mod test {
         let bus = Bus::new(test::test_rom());
         let mut cpu = CPU::new(bus);
         cpu.load_and_run(vec![0xa9, 0x55, 0xaa, 0x86, 0x00]);
-        assert_eq!(
-            cpu.mem_read(cpu.mem_read(cpu.program_counter - 2) as u16),
-            0x55
-        );
+        let mem = cpu.mem_read(cpu.program_counter - 2) as u16;
+        assert_eq!(cpu.mem_read(mem), 0x55);
     }
 
     #[test]
@@ -1384,10 +1380,8 @@ mod test {
         let bus = Bus::new(test::test_rom());
         let mut cpu = CPU::new(bus);
         cpu.load_and_run(vec![0xa9, 0x55, 0xa8, 0x84, 0x00]);
-        assert_eq!(
-            cpu.mem_read(cpu.mem_read(cpu.program_counter - 2) as u16),
-            0x55
-        );
+        let mem = cpu.mem_read(cpu.program_counter - 2) as u16;
+        assert_eq!(cpu.mem_read(mem), 0x55);
     }
 
     // TODO: AND/EOR/ORA

@@ -8,5 +8,6 @@ version = "0.1.0"
 [dependencies]
 once_cell = "1.16.0"
 
+bitflags = "1.2.1"
 rand = "=0.7.3"
 sdl2 = "0.34.0"
