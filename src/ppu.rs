@@ -11,6 +11,7 @@ pub struct NesPPU {
     pub status: StatusRegister,
     pub scroll: ScrollRegister,
     pub addr: AddrRegister,
+    pub oam_addr: u8,
     pub oam_data: [u8; 256],
 
     pub chr_rom: Vec<u8>,
@@ -26,6 +27,7 @@ impl NesPPU {
             chr_rom: chr_rom,
             palette_table: [0; 32],
             vram: [0; 2048],
+            oam_addr: 0,
             oam_data: [0; 64 * 4],
             mirroring: mirroring,
             addr: AddrRegister::new(),
@@ -49,8 +51,28 @@ impl NesPPU {
         self.mask.update(value);
     }
 
+    pub fn write_to_oam_addr(&mut self, value: u8) {
+        self.oam_addr = value;
+    }
+
+    pub fn write_to_oam_data(&mut self, value: u8) {
+        self.oam_data[self.oam_addr as usize] = value;
+        self.oam_addr = self.oam_addr.wrapping_add(1);
+    }
+
+    pub fn read_oam_data(&self) -> u8 {
+        self.oam_data[self.oam_addr as usize]
+    }
+
     pub fn write_to_scroll(&mut self, value: u8) {
         self.scroll.write(value);
+    }
+
+    pub fn write_oam_dma(&mut self, data: &[u8; 256]) {
+        for x in data.iter() {
+            self.oam_data[self.oam_addr as usize] = *x;
+            self.oam_addr = self.oam_addr.wrapping_add(1);
+        }
     }
 
     pub fn read_status(&mut self) -> u8 {
