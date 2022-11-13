@@ -1,12 +1,13 @@
 use crate::{
     cartridge::Mirroring, ppu_addr_register::AddrRegister, ppu_control_register::ControlRegister,
-    ppu_mask_register::MaskRegister,
+    ppu_mask_register::MaskRegister, ppu_status_register::StatusRegister,
 };
 
 pub struct NesPPU {
     pub mirroring: Mirroring,
     pub ctrl: ControlRegister,
     pub mask: MaskRegister,
+    pub status: StatusRegister,
     pub addr: AddrRegister,
     pub oam_data: [u8; 256],
 
@@ -28,6 +29,7 @@ impl NesPPU {
             addr: AddrRegister::new(),
             ctrl: ControlRegister::new(),
             mask: MaskRegister::new(),
+            status: StatusRegister::new(),
             internal_data_buf: 0,
         }
     }
@@ -42,6 +44,14 @@ impl NesPPU {
 
     pub fn write_to_mask(&mut self, value: u8) {
         self.mask.update(value);
+    }
+
+    pub fn read_status(&mut self) -> u8 {
+        let status = self.status.snapshot();
+        self.status.reset_vblank_status();
+        self.addr.reset_latch();
+        // TODO: scroll reset
+        status
     }
 
     pub fn read_data(&mut self) -> u8 {

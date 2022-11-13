@@ -6,4 +6,5 @@ pub mod ppu;
 pub mod ppu_addr_register;
 pub mod ppu_control_register;
 pub mod ppu_mask_register;
+pub mod ppu_status_register;
 pub mod trace;
