@@ -63,7 +63,9 @@ impl Mem for Bus {
             0x2000 => {
                 self.ppu.write_to_ctrl(data);
             }
-
+            0x2001 => {
+                self.ppu.write_to_mask(data);
+            }
             0x2006 => {
                 self.ppu.write_to_ppu_addr(data);
             }
