@@ -1,6 +1,7 @@
 use crate::{
     cartridge::Mirroring, ppu_addr_register::AddrRegister, ppu_control_register::ControlRegister,
-    ppu_mask_register::MaskRegister, ppu_status_register::StatusRegister,
+    ppu_mask_register::MaskRegister, ppu_scroll_register::ScrollRegister,
+    ppu_status_register::StatusRegister,
 };
 
 pub struct NesPPU {
@@ -8,6 +9,7 @@ pub struct NesPPU {
     pub ctrl: ControlRegister,
     pub mask: MaskRegister,
     pub status: StatusRegister,
+    pub scroll: ScrollRegister,
     pub addr: AddrRegister,
     pub oam_data: [u8; 256],
 
@@ -30,6 +32,7 @@ impl NesPPU {
             ctrl: ControlRegister::new(),
             mask: MaskRegister::new(),
             status: StatusRegister::new(),
+            scroll: ScrollRegister::new(),
             internal_data_buf: 0,
         }
     }
@@ -46,11 +49,15 @@ impl NesPPU {
         self.mask.update(value);
     }
 
+    pub fn write_to_scroll(&mut self, value: u8) {
+        self.scroll.write(value);
+    }
+
     pub fn read_status(&mut self) -> u8 {
         let status = self.status.snapshot();
         self.status.reset_vblank_status();
         self.addr.reset_latch();
-        // TODO: scroll reset
+        self.scroll.reset_latch();
         status
     }
 
