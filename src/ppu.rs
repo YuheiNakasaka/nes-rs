@@ -37,14 +37,6 @@ impl NesPPU {
         self.ctrl.update(value);
     }
 
-    pub fn write_to_data(&mut self, value: u8) {
-        todo!()
-    }
-
-    pub fn increment_vram_addr(&mut self) {
-        self.addr.increment(self.ctrl.vram_addr_increment());
-    }
-
     pub fn read_data(&mut self) -> u8 {
         let addr = self.addr.get();
         self.increment_vram_addr();
@@ -69,7 +61,27 @@ impl NesPPU {
         }
     }
 
-    pub fn mirror_vram_addr(&self, addr: u16) -> u16 {
+    pub fn write_to_data(&mut self, value: u8) {
+        let addr = self.addr.get();
+        match addr {
+            0..=0x1fff => println!("attempt to write to chr rom space {}", addr),
+            0x2000..=0x2fff => {
+                self.vram[self.mirror_vram_addr(addr) as usize] = value;
+            }
+            0x3000..=0x3eff => unimplemented!("addr {} shouldn't be used in reallity", addr),
+            0x3f10 | 0x3f14 | 0x3f18 | 0x3f1c => {
+                let add_mirror = addr - 0x10;
+                self.palette_table[(add_mirror - 0x3f00) as usize] = value;
+            }
+            0x3f00..=0x3fff => {
+                self.palette_table[(addr - 0x3f00) as usize] = value;
+            }
+            _ => panic!("unexpacted access to mirrored space {}", addr),
+        }
+        self.increment_vram_addr();
+    }
+
+    fn mirror_vram_addr(&self, addr: u16) -> u16 {
         let mirrored_vram = addr & 0b10_1111_1111_1111;
         let vram_index = mirrored_vram - 0x2000;
         let name_table = vram_index / 0x400;
@@ -80,5 +92,9 @@ impl NesPPU {
             (Mirroring::HORIZONTAL, 3) => vram_index - 0x800,
             _ => vram_index,
         }
+    }
+
+    fn increment_vram_addr(&mut self) {
+        self.addr.increment(self.ctrl.vram_addr_increment());
     }
 }
