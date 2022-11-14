@@ -6,6 +6,7 @@ const CHR_ROM_PAGE_SIZE: usize = 8192;
 pub enum Mirroring {
     VERTICAL,
     HORIZONTAL,
+    #[allow(non_camel_case_types)]
     FOUR_SCREEN,
 }
 

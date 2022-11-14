@@ -1074,7 +1074,6 @@ impl CPU {
                     let data = self.register_y & ((mem_address >> 8) as u8 + 1);
                     self.mem_write(mem_address, data)
                 }
-                _ => panic!("{} not implemented", code),
             }
 
             if program_counter_state == self.program_counter {
