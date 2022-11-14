@@ -134,10 +134,11 @@ mod test {
     use super::*;
     use crate::bus::Bus;
     use crate::cartridge::test::test_rom;
+    use crate::ppu::NesPPU;
 
     #[test]
     fn test_format_trace() {
-        let mut bus = Bus::new(test_rom());
+        let mut bus = Bus::new(test_rom(), |ppu: &NesPPU| {});
         bus.mem_write(100, 0xa2);
         bus.mem_write(101, 0x01);
         bus.mem_write(102, 0xca);
@@ -169,7 +170,7 @@ mod test {
 
     #[test]
     fn test_format_mem_access() {
-        let mut bus = Bus::new(test_rom());
+        let mut bus = Bus::new(test_rom(), |ppu: &NesPPU| {});
         // ORA ($33), Y
         bus.mem_write(100, 0x11);
         bus.mem_write(101, 0x33);

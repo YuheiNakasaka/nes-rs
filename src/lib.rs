@@ -9,6 +9,7 @@ pub mod ppu_control_register;
 pub mod ppu_mask_register;
 pub mod ppu_scroll_register;
 pub mod ppu_status_register;
+pub mod renderer;
 pub mod renderer_frame;
 pub mod renderer_palette;
 pub mod trace;
