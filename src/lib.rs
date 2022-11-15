@@ -2,6 +2,7 @@ pub mod bus;
 pub mod cartridge;
 pub mod cpu;
 pub mod interrupts;
+pub mod joypad;
 pub mod opcodes;
 pub mod ppu;
 pub mod ppu_addr_register;

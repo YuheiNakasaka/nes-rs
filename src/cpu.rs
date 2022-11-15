@@ -837,6 +837,8 @@ impl<'a> CPU<'a> {
         self.status = self.status | 0b0000_0100;
 
         self.bus.tick(interrupt.cpu_cycles);
+        // ここで割り込みのアドレス先が毎度ループで確認してる
+        // 例えばJoypadの0x4016の値もループで都度確認され続けている
         self.program_counter = self.mem_read_u16(interrupt.vector_addr);
     }
 
