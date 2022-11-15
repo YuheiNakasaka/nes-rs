@@ -61,6 +61,10 @@ impl NesPPU {
     pub fn tick(&mut self, cycles: u8) -> bool {
         self.cycles += cycles as usize;
         if self.cycles > 341 {
+            if self.is_sprite_0_hit(self.cycles) {
+                self.status.set_sprite_zero_hit(true);
+            }
+
             self.cycles = self.cycles - 341;
             self.scanline += 1;
 
@@ -194,6 +198,12 @@ impl NesPPU {
 
     fn increment_vram_addr(&mut self) {
         self.addr.increment(self.ctrl.vram_addr_increment());
+    }
+
+    fn is_sprite_0_hit(&self, cycle: usize) -> bool {
+        let y = self.oam_data[0] as usize;
+        let x = self.oam_data[3] as usize;
+        (y == self.scanline as usize) && x <= cycle && self.mask.show_sprites()
     }
 }
 
